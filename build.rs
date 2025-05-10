@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/*");
+    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/lib.cpp");
+    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/resolve_mask.cpp");
+    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/flood_fill.cpp");
+
 
     let src = ["vendor/custom-opencv-lib/lib.cpp", "vendor/custom-opencv-lib/resolve_mask.cpp", "vendor/custom-opencv-lib/flood_fill.cpp"];
 

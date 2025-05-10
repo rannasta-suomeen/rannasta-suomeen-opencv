@@ -31,6 +31,9 @@ where
     let mut tmp_file = tokio::fs::File::create(&full_input_path).await?;
 
     let mut stream = reqwest::get(options.url).await?;
+    if !stream.status().is_success() {
+        return Err(format!("Failed to fetch: {}", options.url).into());
+    }
     while let Some(chunk) = stream.chunk().await? {
         tmp_file.write_all(&chunk).await?;
     }
