@@ -4,23 +4,23 @@ use tokio::io::AsyncWriteExt;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-
 mod tests;
-
-
 
 pub struct Options<'options> {
     pub url: &'options str,
     pub tmp_dir: PathBuf,
     pub id: usize,
     pub debug: bool,
-    pub verbose: bool
+    pub verbose: bool,
 }
 
-pub async fn remove_background_url<F, Fut>(options: Options<'_>, callback: F) -> Result<(), Box<dyn Error>> 
+pub async fn remove_background_url<F, Fut>(
+    options: Options<'_>,
+    callback: F,
+) -> Result<(), Box<dyn Error>>
 where
     F: Fn(PathBuf) -> Fut,
-    Fut: Future<Output = Result<(), Box<dyn Error>>>
+    Fut: Future<Output = Result<(), Box<dyn Error>>>,
 {
     let tmp_input_file_path = PathBuf::from(format!("tmp-input-{}", options.id));
     let tmp_output_file_path = PathBuf::from(format!("tmp-output-{}.png", options.id));
@@ -38,8 +38,14 @@ where
         tmp_file.write_all(&chunk).await?;
     }
 
-    let _full_input_path = full_input_path.as_os_str().to_str().ok_or(format!("Invalid path: {:#?}", &full_input_path))?;
-    let _full_output_path = full_output_path.as_os_str().to_str().ok_or(format!("Invalid path: {:#?}", &full_output_path))?;
+    let _full_input_path = full_input_path
+        .as_os_str()
+        .to_str()
+        .ok_or(format!("Invalid path: {:#?}", &full_input_path))?;
+    let _full_output_path = full_output_path
+        .as_os_str()
+        .to_str()
+        .ok_or(format!("Invalid path: {:#?}", &full_output_path))?;
 
     let input_path = CString::new(_full_input_path)?;
     let input_path = input_path.as_ptr();
@@ -47,9 +53,16 @@ where
     let output_path = CString::new(_full_output_path)?;
     let output_path = output_path.as_ptr();
 
-
-    let _options = ResolveOptions { debug: options.debug, verbose: options.verbose, input_path, output_path };
-    unsafe { run_image_tool(_options) };
+    let _options = ResolveOptions {
+        debug: options.debug,
+        verbose: options.verbose,
+        input_path,
+        output_path,
+    };
+    let status = unsafe { run_image_tool(_options) };
+    if status != 0 {
+        return Err(format!("run_image_tool failed with status {status}").into());
+    }
 
     callback(full_output_path.clone()).await?;
 
@@ -58,5 +71,3 @@ where
 
     Ok(())
 }
-
-

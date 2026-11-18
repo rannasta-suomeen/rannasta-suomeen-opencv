@@ -2,108 +2,43 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    const DIR: &str = "vendor/custom-opencv-lib";
     println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/lib.cpp");
-    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/resolve_mask.cpp");
-    println!("cargo:rerun-if-changed=vendor/custom-opencv-lib/flood_fill.cpp");
+    println!("cargo:rerun-if-changed={DIR}");
 
-
-    let src = ["vendor/custom-opencv-lib/lib.cpp", "vendor/custom-opencv-lib/resolve_mask.cpp", "vendor/custom-opencv-lib/flood_fill.cpp"];
-
-    // ...
-    let open_cv_libs = [
-        "-lopencv_alphamat",
-        "-lopencv_aruco",
-        "-lopencv_barcode",
-        "-lopencv_bgsegm",
-        "-lopencv_bioinspired",
-        "-lopencv_ccalib",
-        // "-lopencv_cvv" might be required
-        "-lopencv_dnn_objdetect",
-        "-lopencv_dnn_superres",
-        "-lopencv_dpm",
-        "-lopencv_face",
-        "-lopencv_freetype",
-        "-lopencv_fuzzy",
-        "-lopencv_hdf",
-        "-lopencv_hfs",
-        "-lopencv_img_hash",
-        "-lopencv_intensity_transform",
-        "-lopencv_line_descriptor",
-        "-lopencv_mcc",
-        "-lopencv_quality",
-        "-lopencv_rapid",
-        "-lopencv_reg",
-        "-lopencv_rgbd",
-        "-lopencv_saliency",
-        "-lopencv_shape",
-        "-lopencv_stereo",
-        "-lopencv_structured_light",
-        "-lopencv_phase_unwrapping",
-        "-lopencv_superres",
-        "-lopencv_optflow",
-        "-lopencv_surface_matching",
-        "-lopencv_tracking",
-        "-lopencv_highgui",
-        "-lopencv_datasets",
-        "-lopencv_text",
-        "-lopencv_plot",
-        "-lopencv_ml",
-        "-lopencv_videostab",
-        "-lopencv_videoio",
-        "-lopencv_viz",
-        "-lopencv_wechat_qrcode",
-        "-lopencv_ximgproc",
-        "-lopencv_video",
-        "-lopencv_xobjdetect",
-        "-lopencv_objdetect",
-        "-lopencv_calib3d",
-        "-lopencv_imgcodecs",
-        "-lopencv_features2d",
-        "-lopencv_dnn",
-        "-lopencv_flann",
-        "-lopencv_xphoto",
-        "-lopencv_photo",
-        "-lopencv_imgproc",
-        "-lopencv_core",
-    ];
+    // Equivalent of `pkg-config --cflags --libs opencv4`. The pkg-config crate
+    // prints the cargo:rustc-link-* lines itself, so no hard-coded library list.
+    let opencv = pkg_config::Config::new()
+        .atleast_version("4.2")
+        .probe("opencv4")
+        .expect("OpenCV 4 not found via pkg-config (apt install libopencv-dev)");
 
     // Compile src files
     cc::Build::new()
         .cpp(true)
-        .files(src.iter())
-        .flag("-I/usr/include/opencv4")
+        .files(["lib.cpp", "resolve_mask.cpp", "flood_fill.cpp"].map(|f| format!("{DIR}/{f}")))
+        .includes(&opencv.include_paths)
         .compile("custom-lib");
 
-    // Generate bindings 
-    let mut builder = bindgen::Builder::default()
+    // Generate bindings
+    let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg("-xc++")
-        .clang_arg("-Ivendor/custom-opencv-lib")
-        .clang_arg("-I/usr/include/opencv4");
-
-    // Equilevant of `$(pkg-config opencv4 --libs)`
-    for lib in open_cv_libs {
-        builder = builder.clang_arg(lib);
-    }
-
-    // Allowlisting (we don't need the whole ass C++ std library)
-    let bindings = builder
+        .clang_arg(format!("-I{DIR}"))
+        .clang_args(
+            opencv
+                .include_paths
+                .iter()
+                .map(|p| format!("-I{}", p.display())),
+        )
+        // Allowlisting (we don't need the whole ass C++ std library)
         .allowlist_function("run_image_tool")
         .allowlist_type("ResolveOptions")
         .generate()
         .expect("Unable to generate bindings");
 
-    // Write the bindgen
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-
-    // rust-linker also needs to dynamically link every. single. library
-    println!("cargo:rustc-link-search=static=/usr/include/opencv4");
-    for lib in open_cv_libs {
-        let lib = lib.replace("-l", "");
-        println!("cargo:rustc-link-lib=dylib={}", lib);
-    }
 }

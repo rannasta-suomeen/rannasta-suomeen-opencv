@@ -6,7 +6,7 @@
 
 
 
-int run_image_tool(ResolveOptions options) {
+static int run_image_tool_impl(ResolveOptions options) {
     cv::Mat src;
     src = cv::imread(options.input_path);
     if (src.empty()) {
@@ -99,4 +99,19 @@ int run_image_tool(ResolveOptions options) {
     cv::imwrite(options.output_path, output);
 
     return 0;
+}
+
+// Entry point called from Rust. A C++ exception unwinding into Rust is
+// undefined behaviour, so every exception is caught here and turned into
+// a non-zero return code.
+int run_image_tool(ResolveOptions options) {
+    try {
+        return run_image_tool_impl(options);
+    } catch (const std::exception& e) {
+        std::cerr << "> run_image_tool: " << e.what() << "\n";
+        return -2;
+    } catch (...) {
+        std::cerr << "> run_image_tool: unknown exception\n";
+        return -3;
+    }
 }
