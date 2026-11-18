@@ -2,6 +2,7 @@
 #include <iostream>
 #include "opencv2/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
+#include "resolve_mask.hpp"
  
 using namespace std;
 using namespace cv;
@@ -142,15 +143,6 @@ std::vector<cv::Point> extractKeyContourPoints(const cv::Mat& cannyImg, cv::Mat&
     return keyPoints;
 }
 
-struct ResolveOptions {
-    bool verbose;
-    bool debug;
-};
-
-struct ResolveResult {
-    cv::Mat result;
-    cv::Point center;
-};
 
 
 /// @brief Resolve optimal mask for product image

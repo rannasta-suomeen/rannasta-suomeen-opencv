@@ -14,8 +14,8 @@ async fn test_main() -> Result<(), Box<dyn Error>> {
             url,
             tmp_dir: PathBuf::from("/tmp"),
             id: i,
-            debug: url_list.len() < 2,
-            verbose: true,
+            debug: false,
+            verbose: false,
         };
         let id = options.id;
         remove_background_url(options, |out| async move {
